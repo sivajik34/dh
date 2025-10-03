@@ -4,11 +4,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
-import boto3
 from datetime import datetime, timedelta
 
 app_order = FastAPI(title="Order Service")
-
+#import boto3
 # DynamoDB client (mock for this example)
 # dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 # orders_table = dynamodb.Table('orders')
