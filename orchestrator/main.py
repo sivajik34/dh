@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 import httpx
 from enum import Enum
 
-app_orch = FastAPI(title="Orchestrator Service")
+app = FastAPI(title="Orchestrator Service")
 
 class IntentType(str, Enum):
     ORDER_STATUS = "order_status"
@@ -84,7 +84,7 @@ async def handle_with_llm(request: OrchestratorRequest) -> Dict:
         )
         return response.json()
 
-@app_orch.post("/orchestrate")
+@app.post("/orchestrate")
 async def orchestrate(request: OrchestratorRequest):
     # State machine logic
     if request.requires_llm or request.confidence < 0.7:
@@ -129,6 +129,6 @@ async def orchestrate(request: OrchestratorRequest):
     
     return result
 
-@app_orch.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "orchestrator"}

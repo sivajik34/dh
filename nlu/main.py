@@ -10,7 +10,7 @@ import spacy
 import httpx
 import numpy as np
 
-app_nlu = FastAPI(title="NLU Service")
+app = FastAPI(title="NLU Service")
 
 # Load models
 nlp = spacy.load("en_core_web_sm")
@@ -88,7 +88,7 @@ def extract_entities(text: str) -> List[Dict[str, Any]]:
     
     return entities
 
-@app_nlu.post("/process", response_model=NLUResponse)
+@app.post("/process", response_model=NLUResponse)
 async def process_message(request: NLURequest):
     # Classify intent
     intent, confidence = classify_intent(request.message)
@@ -136,6 +136,6 @@ async def process_message(request: NLURequest):
         )
         return response.json()
 
-@app_nlu.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "nlu"}

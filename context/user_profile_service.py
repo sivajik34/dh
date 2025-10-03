@@ -8,7 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
 
-app_context = FastAPI(title="User Profile Service")
+app = FastAPI(title="User Profile Service")
 
 class UserProfile(BaseModel):
     user_id: str
@@ -26,7 +26,7 @@ def get_db_connection():
         password="chatbot_password"
     )
 
-@app_context.post("/profile")
+@app.post("/profile")
 async def create_profile(profile: UserProfile):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -52,7 +52,7 @@ async def create_profile(profile: UserProfile):
     
     return {"status": "success"}
 
-@app_context.get("/profile/{user_id}")
+@app.get("/profile/{user_id}")
 async def get_profile(user_id: str):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -71,6 +71,6 @@ async def get_profile(user_id: str):
         return profile
     return {"error": "Profile not found"}
 
-@app_context.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "user_profile"}

@@ -8,7 +8,7 @@ from datetime import datetime
 import redis
 import json
 
-app_conv = FastAPI(title="Conversation History Service")
+app = FastAPI(title="Conversation History Service")
 
 redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
 
@@ -21,7 +21,7 @@ class ConversationMessage(BaseModel):
     intent: Optional[str] = None
     confidence: Optional[float] = None
 
-@app_conv.post("/conversation/add")
+@app.post("/conversation/add")
 async def add_message(conv: ConversationMessage):
     if not conv.timestamp:
         conv.timestamp = datetime.utcnow().isoformat()
@@ -34,7 +34,7 @@ async def add_message(conv: ConversationMessage):
     
     return {"status": "success"}
 
-@app_conv.get("/conversation/{session_id}")
+@app.get("/conversation/{session_id}")
 async def get_conversation(session_id: str, limit: int = 10):
     key = f"conversation:{session_id}"
     messages = redis_client.lrange(key, -limit, -1)
@@ -44,6 +44,6 @@ async def get_conversation(session_id: str, limit: int = 10):
         "messages": [json.loads(msg) for msg in messages]
     }
 
-@app_conv.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "conversation_history"}

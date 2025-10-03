@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 
-app_order = FastAPI(title="Order Service")
+app = FastAPI(title="Order Service")
 #import boto3
 # DynamoDB client (mock for this example)
 # dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -34,18 +34,18 @@ mock_orders = {
     }
 }
 
-@app_order.get("/order/{order_id}")
+@app.get("/order/{order_id}")
 async def get_order(order_id: str):
     order = mock_orders.get(order_id)
     if not order:
         return {"error": "Order not found"}
     return order
 
-@app_order.post("/order")
+@app.post("/order")
 async def create_order(order: Order):
     mock_orders[order.order_id] = order.dict()
     return {"status": "success", "order_id": order.order_id}
 
-@app_order.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "order"}

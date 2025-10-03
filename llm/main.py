@@ -4,7 +4,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
-import httpx
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import faiss
@@ -12,7 +11,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import os
 
-app_llm = FastAPI(title="LLM Orchestrator Service")
+app = FastAPI(title="LLM Orchestrator Service")
 
 # Vector store for RAG
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -74,7 +73,7 @@ Response:"""
     
     return prompt
 
-@app_llm.post("/generate")
+@app.post("/generate")
 async def generate_response(request: LLMRequest):
     # Retrieve relevant context
     retrieved_docs = retrieve_context(request.message)
@@ -121,6 +120,6 @@ def validate_response(response: str, original_message: str) -> Dict:
     
     return {'valid': True, 'confidence': 0.85}
 
-@app_llm.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "llm_orchestrator"}

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Dict, Any
 import json
 
-app_handoff = FastAPI(title="Human Handoff Service")
+app = FastAPI(title="Human Handoff Service")
 
 class EscalationRequest(BaseModel):
     user_id: str
@@ -17,7 +17,7 @@ class EscalationRequest(BaseModel):
 # Mock escalation queue
 escalation_queue = []
 
-@app_handoff.post("/escalate")
+@app.post("/escalate")
 async def escalate_to_human(request: EscalationRequest):
     escalation = {
         "timestamp": datetime.utcnow().isoformat(),
@@ -34,10 +34,10 @@ async def escalate_to_human(request: EscalationRequest):
     
     return {"status": "escalated", "queue_position": len(escalation_queue)}
 
-@app_handoff.get("/queue")
+@app.get("/queue")
 async def get_queue():
     return {"queue": escalation_queue}
 
-@app_handoff.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "handoff"}

@@ -4,13 +4,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-app_refund = FastAPI(title="Refund Service")
+app = FastAPI(title="Refund Service")
 
 class RefundRequest(BaseModel):
     user_id: str
     entities: list
 
-@app_refund.post("/refund/initiate")
+@app.post("/refund/initiate")
 async def initiate_refund(request: RefundRequest):
     # Mock refund processing
     return {
@@ -19,6 +19,6 @@ async def initiate_refund(request: RefundRequest):
         "status": "pending_approval"
     }
 
-@app_refund.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "refund"}
