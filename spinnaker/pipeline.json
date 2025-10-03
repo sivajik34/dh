@@ -1,0 +1,64 @@
+{
+  "name": "chatbot-deploy-pipeline",
+  "application": "chatbot",
+  "stages": [
+    {
+      "type": "jenkins",
+      "name": "Build & Test",
+      "master": "drone",
+      "job": "chatbot-build",
+      "parameters": {
+        "BRANCH": "${trigger.branch}"
+      }
+    },
+    {
+      "type": "bake",
+      "name": "Bake Docker Images",
+      "baseOs": "ubuntu",
+      "cloudProviderType": "kubernetes"
+    },
+    {
+      "type": "deployManifest",
+      "name": "Deploy to Staging",
+      "account": "k8s-staging",
+      "cloudProvider": "kubernetes",
+      "manifests": [],
+      "moniker": {
+        "app": "chatbot"
+      },
+      "namespaceOverride": "chatbot-staging"
+    },
+    {
+      "type": "manualJudgment",
+      "name": "Approve Production Deploy",
+      "instructions": "Review staging deployment and approve for production"
+    },
+    {
+      "type": "deployManifest",
+      "name": "Deploy to Production",
+      "account": "k8s-production",
+      "cloudProvider": "kubernetes",
+      "manifests": [],
+      "moniker": {
+        "app": "chatbot"
+      },
+      "namespaceOverride": "chatbot-production",
+      "trafficManagement": {
+        "enabled": true,
+        "options": {
+          "strategy": "bluegreen"
+        }
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "git",
+      "branch": "main",
+      "source": "github",
+      "project": "your-org",
+      "slug": "chatbot-system",
+      "enabled": true
+    }
+  ]
+}

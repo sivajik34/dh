@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8000']
+  
+  - job_name: 'nlu-service'
+    static_configs:
+      - targets: ['nlu-service:8001']
+  
+  - job_name: 'orchestrator'
+    static_configs:
+      - targets: ['orchestrator-service:8004']

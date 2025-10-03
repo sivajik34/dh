@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # Infrastructure
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5  
+  
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: chatbot_db
+      POSTGRES_USER: chatbot_user
+      POSTGRES_PASSWORD: chatbot_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatbot_user -d chatbot_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5  
+  
+  # Services
+  gateway:
+    build: ./gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - nlu-service
+    environment:
+      - REDIS_HOST=redis
+  
+  nlu-service:
+    build: ./nlu
+    ports:
+      - "8001:8001"
+    depends_on:
+      - user-profile-service
+      - conversation-service
+  
+  user-profile-service:
+    build: ./context
+    ports:
+      - "8002:8002"
+    command: uvicorn user_profile:app --host 0.0.0.0 --port 8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=postgres
+
+  conversation-service:
+    build: ./context
+    ports:
+      - "8003:8003"
+    command: uvicorn conversation_service:app --host 0.0.0.0 --port 8003
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+  
+  orchestrator-service:
+    build: ./orchestrator
+    ports:
+      - "8004:8004"
+    depends_on:
+      - llm-service
+      - order-service
+  
+  order-service:
+    build: ./actions
+    ports:
+      - "8005:8005"
+  
+  refund-service:
+    build: ./actions
+    ports:
+      - "8006:8006"
+  
+  llm-service:
+    build: ./llm
+    ports:
+      - "8007:8007"
+  
+  handoff-service:
+    build: ./handoff
+    ports:
+      - "8008:8008"
+  
+  # Observability
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:

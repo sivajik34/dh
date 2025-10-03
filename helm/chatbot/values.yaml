@@ -1,0 +1,76 @@
+# ============================================================================
+# 29. HELM VALUES (helm/chatbot/values.yaml)
+# ============================================================================
+
+global:
+  environment: production
+  imageRegistry: your-registry.io
+
+gateway:
+  replicaCount: 3
+  image:
+    repository: chatbot-gateway
+    tag: latest
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+
+nluService:
+  replicaCount: 2
+  image:
+    repository: chatbot-nlu
+    tag: latest
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+orchestrator:
+  replicaCount: 3
+  image:
+    repository: chatbot-orchestrator
+    tag: latest
+
+llmService:
+  replicaCount: 2
+  image:
+    repository: chatbot-llm
+    tag: latest
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+redis:
+  auth:
+    enabled: true
+    password: "change-me"
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+postgresql:
+  auth:
+    database: chatbot_db
+    username: chatbot_user
+    password: "change-me"
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
