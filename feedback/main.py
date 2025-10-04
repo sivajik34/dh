@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 import psycopg2
 
-app_feedback = FastAPI(title="Feedback Service")
+app = FastAPI(title="Feedback Service")
 
 class Feedback(BaseModel):
     session_id: str
@@ -23,7 +23,7 @@ def get_db_connection():
         password="chatbot_password"
     )
 
-@app_feedback.post("/feedback")
+@app.post("/feedback")
 async def submit_feedback(feedback: Feedback):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -43,7 +43,7 @@ async def submit_feedback(feedback: Feedback):
     
     return {"status": "success", "message": "Thank you for your feedback!"}
 
-@app_feedback.get("/feedback/stats")
+@app.get("/feedback/stats")
 async def get_feedback_stats():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -68,6 +68,6 @@ async def get_feedback_stats():
         "satisfaction_rate": (stats[2] / stats[1] * 100) if stats[1] > 0 else 0
     }
 
-@app_feedback.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "feedback"}
