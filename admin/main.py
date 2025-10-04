@@ -1,14 +1,14 @@
 # ============================================================================
-# 23. ADMIN DASHBOARD BACKEND (admin/main.py)
+# ADMIN DASHBOARD BACKEND (admin/main.py)
 # ============================================================================
 from fastapi import FastAPI, Depends
 from typing import List, Dict
 import psycopg2
 from datetime import datetime, timedelta
 
-app_admin = FastAPI(title="Admin Dashboard API")
+app = FastAPI(title="Admin Dashboard API")
 
-@app_admin.get("/dashboard/overview")
+@app.get("/dashboard/overview")
 async def get_overview():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -37,7 +37,7 @@ async def get_overview():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-@app_admin.get("/dashboard/intents")
+@app.get("/dashboard/intents")
 async def get_intent_distribution():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -65,7 +65,7 @@ async def get_intent_distribution():
         ]
     }
 
-@app_admin.get("/dashboard/performance")
+@app.get("/dashboard/performance")
 async def get_performance_metrics():
     return {
         "avg_response_time_ms": 250,
@@ -74,6 +74,6 @@ async def get_performance_metrics():
         "escalation_rate": 0.08
     }
 
-@app_admin.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "admin"}

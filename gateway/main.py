@@ -52,7 +52,7 @@ async def check_rate_limit(user_id: str):
 
 # Authentication
 def verify_token(authorization: str = Header(None)):
-    return authorization
+    
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization header")
     

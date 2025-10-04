@@ -91,6 +91,10 @@ services:
     build: ./llm
     ports:
       - "8007:8007"
+  admin-service:
+    build: ./llm
+    ports:
+      - "8009:8009"    
   
   handoff-service:
     build: ./handoff
