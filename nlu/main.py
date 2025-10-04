@@ -9,8 +9,11 @@ import torch
 import spacy
 import httpx
 import numpy as np
+from middleware.metrics import setup_metrics_endpoint
 
 app = FastAPI(title="NLU Service")
+
+setup_metrics_endpoint(app)
 
 # Load models
 nlp = spacy.load("en_core_web_sm")
@@ -129,12 +132,20 @@ async def process_message(request: NLURequest):
     }
     
     async with httpx.AsyncClient() as client:
-        response = await client.post(
+        orchestrator_response = await client.post(
             "http://orchestrator-service:8004/orchestrate",
             json=orchestrator_request,
             timeout=60.0
         )
-        return response.json()
+        data = orchestrator_response.json()
+    
+    # Map back to NLUResponse
+    return NLUResponse(
+        intent=intent,
+        confidence=confidence,
+        entities=entities,
+        requires_llm=requires_llm
+    )
 
 @app.get("/health")
 async def health():

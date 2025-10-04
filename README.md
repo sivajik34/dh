@@ -45,7 +45,7 @@ make docker-logs
 ### Access Services
 
 - API Gateway: http://localhost:8000
-- Admin Dashboard: http://localhost:8000/admin
+- Admin Dashboard: http://localhost:8010/admin
 - Grafana: http://localhost:3000
 - Prometheus: http://localhost:9090
 
@@ -99,6 +99,7 @@ User → API Gateway → NLU Service → Orchestrator → [LLM Service | Action 
 5. **LLM Service** (Port 8007): RAG, prompt engineering, LLM calls
 6. **Action Workers** (Ports 8005-8006): Order tracking, refunds, etc.
 7. **Human Handoff** (Port 8008): Escalation management
+8. **Admin** (Port 8010): Admin 
 
 ## Testing
 

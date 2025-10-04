@@ -67,7 +67,7 @@ async def get_profile(user_id: str):
     conn.close()
     
     if profile:
-        profile['preferences'] = json.loads(profile.get('preferences', '{}'))
+        profile['preferences'] = profile.get('preferences') or {}
         return profile
     return {"error": "Profile not found"}
 

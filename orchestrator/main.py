@@ -6,8 +6,11 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import httpx
 from enum import Enum
+from middleware.metrics import setup_metrics_endpoint
 
 app = FastAPI(title="Orchestrator Service")
+
+setup_metrics_endpoint(app)
 
 class IntentType(str, Enum):
     ORDER_STATUS = "order_status"

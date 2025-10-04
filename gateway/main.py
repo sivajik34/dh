@@ -10,16 +10,23 @@ import time
 import redis
 from datetime import datetime, timedelta
 import jwt
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
+from middleware.metrics import setup_metrics_endpoint
+security = HTTPBearer()
 
-app = FastAPI(title="API Gateway")
-
+app = FastAPI(title="API Gateway", swagger_ui_init_oauth={
+        "usePkceWithAuthorizationCodeGrant": False
+    })
+setup_metrics_endpoint(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "Authorization"],
 )
+
 
 # Redis for rate limiting
 redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
@@ -50,13 +57,8 @@ async def check_rate_limit(user_id: str):
     redis_client.incr(key)
     return True
 
-# Authentication
-def verify_token(authorization: str = Header(None)):
-    
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
-    
-    token = authorization.split(" ")[1]
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload
