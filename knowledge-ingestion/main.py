@@ -1,5 +1,5 @@
 # ============================================================================
-# KNOWLEDGE BASE INGESTION SERVICE (llm/knowledge_ingestion.py)
+# KNOWLEDGE BASE INGESTION SERVICE (knowledge_ingestion/main.py)
 # ============================================================================
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
@@ -8,8 +8,8 @@ import PyPDF2
 import docx
 from bs4 import BeautifulSoup
 import io
-
-app_kb = FastAPI(title="Knowledge Base Ingestion")
+from vector_store import VectorStore
+app = FastAPI(title="Knowledge Base Ingestion")
 
 vector_store = VectorStore()
 
@@ -38,13 +38,13 @@ def extract_text_from_html(file_content: bytes) -> str:
     soup = BeautifulSoup(file_content, 'html.parser')
     return soup.get_text()
 
-@app_kb.post("/ingest/document")
+@app.post("/ingest/document")
 async def ingest_document(doc: Document):
     """Ingest a single document"""
     vector_store.add_documents([doc.dict()])
     return {"status": "success", "document_id": doc.id}
 
-@app_kb.post("/ingest/file")
+@app.post("/ingest/file")
 async def ingest_file(file: UploadFile = File(...), category: str = "general"):
     """Ingest a file (PDF, DOCX, HTML, TXT)"""
     content = await file.read()
@@ -72,18 +72,18 @@ async def ingest_file(file: UploadFile = File(...), category: str = "general"):
     
     return {"status": "success", "filename": file.filename, "length": len(text)}
 
-@app_kb.post("/search")
+@app.post("/search")
 async def search_knowledge(query: str, k: int = 5):
     """Search knowledge base"""
     results = vector_store.search(query, k)
     return {"query": query, "results": results}
 
-@app_kb.delete("/document/{doc_id}")
+@app.delete("/document/{doc_id}")
 async def delete_document(doc_id: str):
     """Delete a document"""
     vector_store.delete_by_id([doc_id])
     return {"status": "success", "deleted": doc_id}
 
-@app_kb.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "healthy", "service": "knowledge_ingestion"}

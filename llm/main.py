@@ -9,7 +9,7 @@ from langchain.chains import LLMChain
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import os
+
 
 app = FastAPI(title="LLM Orchestrator Service")
 
@@ -17,6 +17,19 @@ app = FastAPI(title="LLM Orchestrator Service")
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 dimension = 384
 index = faiss.IndexFlatL2(dimension)
+import httpx
+
+KNOWLEDGE_INGESTION_URL = "http://knowledge-ingestion-service:8006"
+
+async def retrieve_context(query: str, k: int = 3) -> list[str]:
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{KNOWLEDGE_INGESTION_URL}/search",
+            params={"k": k},
+            json={"query": query}
+        )
+        data = resp.json()
+    return [doc["content"] for doc in data.get("results", [])]
 
 # Knowledge base (in production, load from database)
 knowledge_base = [
@@ -36,7 +49,7 @@ class LLMRequest(BaseModel):
     intent: str
     entities: List[Dict[str, Any]]
 
-def retrieve_context(query: str, k: int = 3) -> List[str]:
+def retrieve_context_old(query: str, k: int = 3) -> List[str]:
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding).astype('float32'), k)
     return [knowledge_base[i] for i in indices[0]]
@@ -122,4 +135,4 @@ def validate_response(response: str, original_message: str) -> Dict:
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "llm_orchestrator"}
+    return {"status": "healthy", "service": "llm_service"}

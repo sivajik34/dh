@@ -5,7 +5,11 @@ psycopg2-binary==2.9.9
 redis==5.0.1
 langchain
 faiss-cpu==1.7.4
+huggingface_hub
 sentence-transformers
 tokenizers
 transformers
-
+PyPDF2
+beautifulsoup4
+python-docx
+python-multipart

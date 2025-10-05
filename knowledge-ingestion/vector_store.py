@@ -1,12 +1,13 @@
 # ============================================================================
-# 36. VECTOR DATABASE SERVICE (llm/vector_store.py)
+# VECTOR DATABASE SERVICE (knowledge_ingestion/vector_store.py)
 # ============================================================================
+import os
+import pickle
+import numpy as np
 from typing import List, Dict, Any
 import faiss
-import numpy as np
 from sentence_transformers import SentenceTransformer
-import pickle
-import os
+
 
 class VectorStore:
     def __init__(self, dimension: int = 384, index_path: str = "vector_index.faiss"):

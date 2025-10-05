@@ -123,5 +123,18 @@ services:
     depends_on:
       - prometheus
 
+  knowledge-ingestion-service:
+    build: ./knowledge-ingestion
+    ports:
+      - "8011:8011"
+    volumes:
+      - ./knowledge-ingestion:/app
+      - ./vector_data:/app/vector_data  # for persistent FAISS index
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3    
+
 volumes:
   postgres_data:
