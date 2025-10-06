@@ -1,2 +1,3 @@
 .env.llm
 venv
+k8s/env-llm-configmap.yaml
