@@ -1,0 +1,46 @@
+apiVersion: v1
+data:
+  Dockerfile: |
+    FROM python:3.11-slim
+
+    WORKDIR /app
+
+    COPY requirements.txt .
+    RUN apt-get update && apt-get install -y \
+        build-essential \
+        pkg-config \
+        libssl-dev \
+        rustc \
+        cargo \
+     && rm -rf /var/lib/apt/lists/*
+
+    RUN pip install --no-cache-dir -r requirements.txt
+
+    COPY . .
+
+    EXPOSE 8011
+
+    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8011"]
+  main.py: "# ============================================================================\n# KNOWLEDGE BASE INGESTION SERVICE (knowledge_ingestion/main.py)\n# ============================================================================\nfrom fastapi import FastAPI, UploadFile, File\nfrom pydantic import BaseModel\nfrom typing import List\nimport PyPDF2\nimport docx\nfrom bs4 import BeautifulSoup\nimport io\nfrom vector_store import VectorStore\napp = FastAPI(title=\"Knowledge Base Ingestion\")\n\nvector_store = VectorStore()\n\nclass Document(BaseModel):\n    id: str\n    title: str\n    content: str\n    category: str\n    metadata: dict = {}\n\ndef extract_text_from_pdf(file_content: bytes) -> str:\n    \"\"\"Extract text from PDF\"\"\"\n    pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))\n    text = \"\"\n    for page in pdf_reader.pages:\n        text += page.extract_text()\n    return text\n\ndef extract_text_from_docx(file_content: bytes) -> str:\n    \"\"\"Extract text from DOCX\"\"\"\n    doc = docx.Document(io.BytesIO(file_content))\n    return \"\\n\".join([para.text for para in doc.paragraphs])\n\ndef extract_text_from_html(file_content: bytes) -> str:\n    \"\"\"Extract text from HTML\"\"\"\n    soup = BeautifulSoup(file_content, 'html.parser')\n    return soup.get_text()\n\n@app.post(\"/ingest/document\")\nasync def ingest_document(doc: Document):\n    \"\"\"Ingest a single document\"\"\"\n    vector_store.add_documents([doc.dict()])\n    return {\"status\": \"success\", \"document_id\": doc.id}\n\n@app.post(\"/ingest/file\")\nasync def ingest_file(file: UploadFile = File(...), category: str = \"general\"):\n    \"\"\"Ingest a file (PDF, DOCX, HTML, TXT)\"\"\"\n    content = await file.read()\n    \n    # Extract text based on file type\n    if file.filename.endswith('.pdf'):\n        text = extract_text_from_pdf(content)\n    elif file.filename.endswith('.docx'):\n        text = extract_text_from_docx(content)\n    elif file.filename.endswith('.html'):\n        text = extract_text_from_html(content)\n    else:\n        text = content.decode('utf-8')\n    \n    # Create document\n    doc = {\n        'id': file.filename,\n        'title': file.filename,\n        'content': text,\n        'category': category,\n        'metadata': {'filename': file.filename}\n    }\n    \n    vector_store.add_documents([doc])\n    \n    return {\"status\": \"success\", \"filename\": file.filename, \"length\": len(text)}\n\n@app.post(\"/search\")\nasync def search_knowledge(query: str, k: int = 5):\n    \"\"\"Search knowledge base\"\"\"\n    results = vector_store.search(query, k)\n    return {\"query\": query, \"results\": results}\n\n@app.delete(\"/document/{doc_id}\")\nasync def delete_document(doc_id: str):\n    \"\"\"Delete a document\"\"\"\n    vector_store.delete_by_id([doc_id])\n    return {\"status\": \"success\", \"deleted\": doc_id}\n\n@app.get(\"/health\")\nasync def health():\n    return {\"status\": \"healthy\", \"service\": \"knowledge_ingestion\"}"
+  requirements.txt: |
+    fastapi==0.104.1
+    uvicorn[standard]==0.24.0
+    pydantic==2.5.0
+    psycopg2-binary==2.9.9
+    redis==5.0.1
+    langchain
+    faiss-cpu==1.7.4
+    huggingface_hub
+    sentence-transformers
+    tokenizers
+    transformers
+    PyPDF2
+    beautifulsoup4
+    python-docx
+    python-multipart
+  vector_store.py: "# ============================================================================\n# VECTOR DATABASE SERVICE (knowledge_ingestion/vector_store.py)\n# ============================================================================\nimport os\nimport pickle\nimport numpy as np\nfrom typing import List, Dict, Any\nimport faiss\nfrom sentence_transformers import SentenceTransformer\n\n\nclass VectorStore:\n    def __init__(self, dimension: int = 384, index_path: str = \"vector_index.faiss\"):\n        self.dimension = dimension\n        self.index_path = index_path\n        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')\n        \n        # Initialize FAISS index\n        if os.path.exists(index_path):\n            self.index = faiss.read_index(index_path)\n            with open(f\"{index_path}.metadata\", \"rb\") as f:\n                self.metadata = pickle.load(f)\n        else:\n            self.index = faiss.IndexFlatL2(dimension)\n            self.metadata = []\n    \n    def add_documents(self, documents: List[Dict[str, Any]]):\n        \"\"\"Add documents to vector store\"\"\"\n        texts = [doc['content'] for doc in documents]\n        embeddings = self.embedding_model.encode(texts)\n        \n        self.index.add(np.array(embeddings).astype('float32'))\n        self.metadata.extend(documents)\n        \n        self.save()\n    \n    def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:\n        \"\"\"Search for similar documents\"\"\"\n        query_embedding = self.embedding_model.encode([query])\n        distances, indices = self.index.search(\n            np.array(query_embedding).astype('float32'), k\n        )\n        \n        results = []\n        for i, idx in enumerate(indices[0]):\n            if idx < len(self.metadata):\n                result = self.metadata[idx].copy()\n                result['score'] = float(distances[0][i])\n                results.append(result)\n        \n        return results\n    \n    def save(self):\n        \"\"\"Save index to disk\"\"\"\n        faiss.write_index(self.index, self.index_path)\n        with open(f\"{self.index_path}.metadata\", \"wb\") as f:\n            pickle.dump(self.metadata, f)\n    \n    def delete_by_id(self, doc_ids: List[str]):\n        \"\"\"Delete documents by ID (requires rebuilding index)\"\"\"\n        self.metadata = [doc for doc in self.metadata if doc['id'] not in doc_ids]\n        \n        # Rebuild index\n        if self.metadata:\n            texts = [doc['content'] for doc in self.metadata]\n            embeddings = self.embedding_model.encode(texts)\n            \n            self.index = faiss.IndexFlatL2(self.dimension)\n            self.index.add(np.array(embeddings).astype('float32'))\n        else:\n            self.index = faiss.IndexFlatL2(self.dimension)\n        \n        self.save()"
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: knowledge-ingestion-service
+  name: knowledge-ingestion-service-cm0

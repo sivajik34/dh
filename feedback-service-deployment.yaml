@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: feedback-service
+  name: feedback-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: feedback-service
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: feedback-service
+    spec:
+      containers:
+        - image: feedback-service
+          name: feedback-service
+          ports:
+            - containerPort: 8010
+              protocol: TCP
+      restartPolicy: Always

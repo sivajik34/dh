@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: refund-service
+  name: refund-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: refund-service
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: refund-service
+    spec:
+      containers:
+        - args:
+            - uvicorn
+            - refund_service:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8006"
+          image: refund-service
+          name: refund-service
+          ports:
+            - containerPort: 8006
+              protocol: TCP
+      restartPolicy: Always

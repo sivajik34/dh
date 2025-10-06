@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: llm-service
+  name: llm-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: llm-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: llm-service
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: env-llm
+          image: llm-service
+          name: llm-service
+          ports:
+            - containerPort: 8007
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /app
+              name: llm-service-cm0
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: llm-service-cm0
+          name: llm-service-cm0

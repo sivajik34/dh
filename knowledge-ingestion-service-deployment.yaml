@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: knowledge-ingestion-service
+  name: knowledge-ingestion-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: knowledge-ingestion-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: knowledge-ingestion-service
+    spec:
+      containers:
+        - image: knowledge-ingestion-service
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -f
+                - http://localhost:8011/health
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: knowledge-ingestion-service
+          ports:
+            - containerPort: 8011
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /app
+              name: knowledge-ingestion-service-cm0
+            - mountPath: /app/vector_data
+              name: knowledge-ingestion-service-claim1
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: knowledge-ingestion-service-cm0
+          name: knowledge-ingestion-service-cm0
+        - name: knowledge-ingestion-service-claim1
+          persistentVolumeClaim:
+            claimName: knowledge-ingestion-service-claim1

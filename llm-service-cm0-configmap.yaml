@@ -1,0 +1,47 @@
+apiVersion: v1
+data:
+  Dockerfile: |
+    FROM python:3.11-slim
+
+    WORKDIR /app
+
+    COPY requirements.txt .
+    RUN apt-get update && apt-get install -y \
+        build-essential \
+        pkg-config \
+        libssl-dev \
+        rustc \
+        cargo \
+     && rm -rf /var/lib/apt/lists/*
+
+    RUN pip install --no-cache-dir -r requirements.txt
+
+    COPY *.py .
+
+    EXPOSE 8007
+
+    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8007"]
+  main.py: "# ============================================================================\n# LLM ORCHESTRATOR SERVICE (llm/main.py)\n# ============================================================================\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\nfrom typing import Dict, Any, List, Optional\nfrom langchain.prompts import PromptTemplate\nfrom langchain.chains import LLMChain\nimport faiss\nimport numpy as np\nimport httpx\nfrom sentence_transformers import SentenceTransformer\n# Import strategy factory\nfrom LLMStrategies.factory import get_llm_strategy\n\n# Initialize app\napp = FastAPI(title=\"LLM Orchestrator Service\")\n\n# ---------------------------------------------------------------------------\n# Configuration\n# ---------------------------------------------------------------------------\nLLM_SERVICE = \"azure_openai\"  # could be \"gemini\", \"llama\", etc.\nLLM_CONFIG = {\n    \"temperature\": 0.3,\n    \"model\": \"gpt-4o-mini\",\n    \"max_tokens\": 3000\n}\n\napp = FastAPI(title=\"LLM Orchestrator Service\")\n\n# Vector store for RAG\nembedding_model = SentenceTransformer('all-MiniLM-L6-v2')\ndimension = 384\nindex = faiss.IndexFlatL2(dimension)\n\n\nKNOWLEDGE_INGESTION_URL = \"http://knowledge-ingestion-service:8011\"\n\nasync def retrieve_context(query: str, k: int = 3) -> list[str]:\n    async with httpx.AsyncClient() as client:\n        resp = await client.post(\n            f\"{KNOWLEDGE_INGESTION_URL}/search\",\n            params={\"k\": k},\n            json={\"query\": query}\n        )\n        data = resp.json()\n    return [doc[\"content\"] for doc in data.get(\"results\", [])]\n\n# Knowledge base (in production, load from database)\nknowledge_base = [\n    \"Our return policy allows returns within 30 days of delivery.\",\n    \"Shipping typically takes 3-5 business days for standard delivery.\",\n    \"You can track your order using the tracking ID sent to your email.\",\n    \"Refunds are processed within 5-7 business days after approval.\",\n]\n\n# Embed and store knowledge\nknowledge_embeddings = embedding_model.encode(knowledge_base)\nindex.add(np.array(knowledge_embeddings).astype('float32'))\n\nclass LLMRequest(BaseModel):\n    message: str\n    context: Dict[str, Any]\n    intent: str\n    entities: List[Dict[str, Any]]\n\ndef retrieve_context_old(query: str, k: int = 3) -> List[str]:\n    query_embedding = embedding_model.encode([query])\n    distances, indices = index.search(np.array(query_embedding).astype('float32'), k)\n    return [knowledge_base[i] for i in indices[0]]\n\ndef build_prompt(message: str, context: Dict, retrieved_docs: List[str]) -> str:\n    user_profile = context.get('user_profile', {})\n    conversation = context.get('conversation_history', {}).get('messages', [])\n    \n    recent_conversation = \"\\n\".join([\n        f\"User: {msg.get('message', '')}\\nBot: {msg.get('response', '')}\"\n        for msg in conversation[-3:]\n    ])\n    \n    retrieved_context = \"\\n\".join(retrieved_docs)\n    \n    prompt = f\"\"\"You are a helpful customer service assistant for an e-commerce platform.\n\nUser Profile:\n- Name: {user_profile.get('name', 'Customer')}\n- Tier: {user_profile.get('tier', 'standard')}\n\nRecent Conversation:\n{recent_conversation}\n\nRelevant Knowledge:\n{retrieved_context}\n\nCurrent User Message: {message}\n\nProvide a helpful, friendly, and accurate response. If you need more information, ask clarifying questions.\nKeep responses concise (2-3 sentences max).\n\nResponse:\"\"\"\n    \n    return prompt\n\n@app.post(\"/generate\")\nasync def generate_response(request: LLMRequest):\n    # Retrieve relevant context\n    retrieved_docs = await retrieve_context(request.message)\n    \n    # Build prompt with guardrails\n    prompt = build_prompt(request.message, request.context, retrieved_docs)\n    llm_strategy = get_llm_strategy(LLM_SERVICE, LLM_CONFIG)\n    llm = llm_strategy.initialize()\n    # Call LLM API (VertexAI, OpenAI, etc.)\n    # For this example, using a mock response\n    # In production, integrate with actual LLM endpoint\n    \n    # Mock LLM call\n    #llm_response = f\"Based on your inquiry about '{request.intent}', I can help you with that. \"\n\n    response = llm.invoke(prompt)\n    llm_response = response.content if hasattr(response, \"content\") else str(response)\n    \n    if request.intent == \"order_status\":\n        llm_response += \"Please provide your order ID so I can check the status for you.\"\n    elif request.intent == \"refund_request\":\n        llm_response += \"I'll help you process a refund. Can you share your order details?\"\n    else:\n        llm_response += \"How can I assist you further?\"\n    \n    # Validate response\n    validation_result = validate_response(llm_response, request.message)\n    \n    if not validation_result['valid']:\n        llm_response = \"I apologize, but I need to clarify some details. Could you rephrase your question?\"\n    \n    return {\n        \"response\": llm_response,\n        \"confidence\": validation_result.get('confidence', 0.8),\n        \"sources\": retrieved_docs\n    }\n\ndef validate_response(response: str, original_message: str) -> Dict:\n    # Business rules validation\n    forbidden_words = ['guarantee', 'promise', 'definitely will']\n    \n    if any(word in response.lower() for word in forbidden_words):\n        return {'valid': False, 'reason': 'Contains forbidden promises'}\n    \n    # Length check\n    if len(response) > 500:\n        return {'valid': False, 'reason': 'Response too long'}\n    \n    return {'valid': True, 'confidence': 0.85}\n\n@app.get(\"/health\")\nasync def health():\n    return {\"status\": \"healthy\", \"service\": \"llm_service\"}"
+  requirements.txt: |+
+    fastapi==0.104.1
+    uvicorn[standard]==0.24.0
+    pydantic==2.5.0
+    psycopg2-binary==2.9.9
+    redis==5.0.1
+    langchain
+    faiss-cpu==1.7.4
+    sentence-transformers
+    tokenizers
+    transformers
+    python-dotenv
+    langchain-ollama
+    langchain-openai
+    pandas
+    numpy
+    langchain-google-genai
+
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: llm-service
+  name: llm-service-cm0

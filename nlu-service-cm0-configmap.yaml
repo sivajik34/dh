@@ -1,0 +1,42 @@
+apiVersion: v1
+data:
+  Dockerfile: |-
+    FROM python:3.11-slim
+
+    WORKDIR /app
+
+    # Install system dependencies
+    RUN apt-get update && apt-get install -y \
+        gcc \
+        g++ \
+        && rm -rf /var/lib/apt/lists/*
+
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+
+    # Download spaCy model
+    # Install spaCy + small English model
+    RUN pip install spacy==3.7.2 \
+        && pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+
+
+    COPY . .
+
+    EXPOSE 8001
+
+    CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+  main.py: "# ============================================================================\n# NLU PIPELINE SERVICE (nlu/main.py)\n# ============================================================================\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\nfrom typing import Dict, Any, List, Optional\nfrom transformers import AutoTokenizer, AutoModelForSequenceClassification\nimport torch\nimport spacy\nimport httpx\nimport numpy as np\nfrom middleware.metrics import setup_metrics_endpoint\n\napp = FastAPI(title=\"NLU Service\")\n\nsetup_metrics_endpoint(app)\n\n# Load models\nnlp = spacy.load(\"en_core_web_sm\")\n\n# Intent classification model (DistilBERT)\nintent_tokenizer = AutoTokenizer.from_pretrained(\"distilbert-base-uncased\")\nintent_model = AutoModelForSequenceClassification.from_pretrained(\n    \"distilbert-base-uncased\",\n    num_labels=10  # Adjust based on your intents\n)\n\n# Intent labels\nINTENT_LABELS = [\n    \"order_status\",\n    \"refund_request\",\n    \"product_inquiry\",\n    \"complaint\",\n    \"account_issue\",\n    \"shipping_info\",\n    \"payment_issue\",\n    \"cancel_order\",\n    \"general_query\",\n    \"other\"\n]\n\nclass NLURequest(BaseModel):\n    message: str\n    user_id: str\n    session_id: str\n    metadata: Optional[Dict[str, Any]] = {}\n\nclass NLUResponse(BaseModel):\n    intent: str\n    confidence: float\n    entities: List[Dict[str, Any]]\n    requires_llm: bool\n    orchestrator_response:Optional[Dict[str, Any]] = None\n\ndef classify_intent(text: str) -> tuple:\n    inputs = intent_tokenizer(text, return_tensors=\"pt\", truncation=True, padding=True)\n    \n    with torch.no_grad():\n        outputs = intent_model(**inputs)\n        logits = outputs.logits\n        probs = torch.nn.functional.softmax(logits, dim=-1)\n        confidence, predicted_class = torch.max(probs, dim=-1)\n    \n    intent = INTENT_LABELS[predicted_class.item()]\n    confidence_score = confidence.item()\n    \n    return intent, confidence_score\n\ndef extract_entities(text: str) -> List[Dict[str, Any]]:\n    doc = nlp(text)\n    entities = []\n    \n    for ent in doc.ents:\n        entities.append({\n            \"text\": ent.text,\n            \"label\": ent.label_,\n            \"start\": ent.start_char,\n            \"end\": ent.end_char\n        })\n    \n    # Extract custom entities (order IDs, etc.)\n    # Simple pattern matching for order IDs\n    import re\n    order_pattern = r'\\b[A-Z]{2}\\d{8,10}\\b'\n    for match in re.finditer(order_pattern, text):\n        entities.append({\n            \"text\": match.group(),\n            \"label\": \"ORDER_ID\",\n            \"start\": match.start(),\n            \"end\": match.end()\n        })\n    \n    return entities\n\n@app.post(\"/process\", response_model=NLUResponse)\nasync def process_message(request: NLURequest):\n    # Classify intent\n    intent, confidence = classify_intent(request.message)\n    \n    # Extract entities\n    entities = extract_entities(request.message)\n    \n    # Determine if LLM is needed\n    requires_llm = confidence < 0.7 or intent == \"other\"\n    \n    # Get context\n    async with httpx.AsyncClient() as client:\n        # Fetch user profile\n        profile_response = await client.get(\n            f\"http://user-profile-service:8002/profile/{request.user_id}\"\n        )\n        user_profile = profile_response.json()\n        \n        # Fetch conversation history\n        conv_response = await client.get(\n            f\"http://conversation-service:8003/conversation/{request.session_id}\"\n        )\n        conversation_history = conv_response.json()\n    \n    # Route to orchestrator\n    orchestrator_request = {\n        \"message\": request.message,\n        \"user_id\": request.user_id,\n        \"session_id\": request.session_id,\n        \"intent\": intent,\n        \"confidence\": confidence,\n        \"entities\": entities,\n        \"requires_llm\": requires_llm,\n        \"context\": {\n            \"user_profile\": user_profile,\n            \"conversation_history\": conversation_history\n        }\n    }\n    \n    async with httpx.AsyncClient() as client:\n        orchestrator_response = await client.post(\n            \"http://orchestrator-service:8004/orchestrate\",\n            json=orchestrator_request,\n            timeout=60.0\n        )\n        orchestrator_data = orchestrator_response.json()\n    \n    # Map back to NLUResponse\n    return NLUResponse(\n        intent=intent,\n        confidence=confidence,\n        entities=entities,\n        requires_llm=requires_llm,\n        orchestrator_response= orchestrator_data\n    )\n\n@app.get(\"/health\")\nasync def health():\n    return {\"status\": \"healthy\", \"service\": \"nlu\"}"
+  requirements.txt: |
+    fastapi==0.104.1
+    uvicorn[standard]==0.24.0
+    pydantic==2.5.0
+    httpx==0.25.1
+    spacy==3.7.2
+    prometheus-client==0.19.0
+    transformers
+    torch
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: nlu-service
+  name: nlu-service-cm0

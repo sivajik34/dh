@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: refund-service
+  name: refund-service
+spec:
+  ports:
+    - name: "8006"
+      port: 8006
+      targetPort: 8006
+  selector:
+    io.kompose.service: refund-service
