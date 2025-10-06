@@ -50,6 +50,7 @@ class NLUResponse(BaseModel):
     confidence: float
     entities: List[Dict[str, Any]]
     requires_llm: bool
+    orchestrator_response:Optional[Dict[str, Any]] = None
 
 def classify_intent(text: str) -> tuple:
     inputs = intent_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
@@ -137,14 +138,15 @@ async def process_message(request: NLURequest):
             json=orchestrator_request,
             timeout=60.0
         )
-        data = orchestrator_response.json()
+        orchestrator_data = orchestrator_response.json()
     
     # Map back to NLUResponse
     return NLUResponse(
         intent=intent,
         confidence=confidence,
         entities=entities,
-        requires_llm=requires_llm
+        requires_llm=requires_llm,
+        orchestrator_response= orchestrator_data
     )
 
 @app.get("/health")

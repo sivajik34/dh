@@ -8,8 +8,23 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import faiss
 import numpy as np
+import httpx
 from sentence_transformers import SentenceTransformer
+# Import strategy factory
+from LLMStrategies.factory import get_llm_strategy
 
+# Initialize app
+app = FastAPI(title="LLM Orchestrator Service")
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+LLM_SERVICE = "azure_openai"  # could be "gemini", "llama", etc.
+LLM_CONFIG = {
+    "temperature": 0.3,
+    "model": "gpt-4o-mini",
+    "max_tokens": 3000
+}
 
 app = FastAPI(title="LLM Orchestrator Service")
 
@@ -17,9 +32,9 @@ app = FastAPI(title="LLM Orchestrator Service")
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 dimension = 384
 index = faiss.IndexFlatL2(dimension)
-import httpx
 
-KNOWLEDGE_INGESTION_URL = "http://knowledge-ingestion-service:8006"
+
+KNOWLEDGE_INGESTION_URL = "http://knowledge-ingestion-service:8011"
 
 async def retrieve_context(query: str, k: int = 3) -> list[str]:
     async with httpx.AsyncClient() as client:
@@ -89,17 +104,21 @@ Response:"""
 @app.post("/generate")
 async def generate_response(request: LLMRequest):
     # Retrieve relevant context
-    retrieved_docs = retrieve_context(request.message)
+    retrieved_docs = await retrieve_context(request.message)
     
     # Build prompt with guardrails
     prompt = build_prompt(request.message, request.context, retrieved_docs)
-    
+    llm_strategy = get_llm_strategy(LLM_SERVICE, LLM_CONFIG)
+    llm = llm_strategy.initialize()
     # Call LLM API (VertexAI, OpenAI, etc.)
     # For this example, using a mock response
     # In production, integrate with actual LLM endpoint
     
     # Mock LLM call
-    llm_response = f"Based on your inquiry about '{request.intent}', I can help you with that. "
+    #llm_response = f"Based on your inquiry about '{request.intent}', I can help you with that. "
+
+    response = llm.invoke(prompt)
+    llm_response = response.content if hasattr(response, "content") else str(response)
     
     if request.intent == "order_status":
         llm_response += "Please provide your order ID so I can check the status for you."

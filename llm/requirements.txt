@@ -9,4 +9,9 @@ sentence-transformers
 tokenizers
 transformers
 python-dotenv
+langchain-ollama
+langchain-openai
+pandas
+numpy
+langchain-google-genai
 

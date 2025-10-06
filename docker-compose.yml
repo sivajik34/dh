@@ -45,6 +45,8 @@ services:
     depends_on:
       - user-profile-service
       - conversation-service
+    volumes:
+      - ./nlu:/app
   
   user-profile-service:
     build: ./context
@@ -92,6 +94,10 @@ services:
     build: ./llm
     ports:
       - "8007:8007"
+    env_file:
+      - .env.llm        # ✅ loads environment variables
+    volumes:
+      - ./llm:/app      # ✅ (recommended) mount your code for dev mod  
 
   admin-service:
     build: ./admin
