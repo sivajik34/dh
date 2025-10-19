@@ -28,11 +28,12 @@ spec:
                 name: env-llm
           image: llm-service
           name: llm-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8007
               protocol: TCP
           volumeMounts:
-            - mountPath: /app
+            - mountPath: /app/config
               name: llm-service-cm0
       restartPolicy: Always
       volumes:

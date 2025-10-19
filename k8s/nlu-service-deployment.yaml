@@ -25,11 +25,12 @@ spec:
       containers:
         - image: nlu-service
           name: nlu-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
               protocol: TCP
           volumeMounts:
-            - mountPath: /app
+            - mountPath: /app/config
               name: nlu-service-cm0
       restartPolicy: Always
       volumes:

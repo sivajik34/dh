@@ -23,6 +23,7 @@ spec:
       containers:
         - image: orchestrator-service
           name: orchestrator-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8004
               protocol: TCP

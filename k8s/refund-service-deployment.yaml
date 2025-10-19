@@ -23,13 +23,14 @@ spec:
       containers:
         - args:
             - uvicorn
-            - refund_service:app
+            - main:app
             - --host
             - 0.0.0.0
             - --port
             - "8006"
           image: refund-service
           name: refund-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8006
               protocol: TCP

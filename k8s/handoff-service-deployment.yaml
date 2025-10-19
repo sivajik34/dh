@@ -23,6 +23,7 @@ spec:
       containers:
         - image: handoff-service
           name: handoff-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8008
               protocol: TCP

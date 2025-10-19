@@ -24,6 +24,7 @@ spec:
     spec:
       containers:
         - image: knowledge-ingestion-service
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
               command:
@@ -38,7 +39,7 @@ spec:
             - containerPort: 8011
               protocol: TCP
           volumeMounts:
-            - mountPath: /app
+            - mountPath: /app/config
               name: knowledge-ingestion-service-cm0
             - mountPath: /app/vector_data
               name: knowledge-ingestion-service-claim1

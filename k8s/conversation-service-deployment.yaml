@@ -33,6 +33,7 @@ spec:
               value: redis
           image: conversation-service
           name: conversation-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8003
               protocol: TCP

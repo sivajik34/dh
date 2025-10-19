@@ -23,6 +23,7 @@ spec:
       containers:
         - image: admin-service
           name: admin-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8009
               protocol: TCP

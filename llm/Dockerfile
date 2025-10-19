@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     rustc \
     cargo \
  && rm -rf /var/lib/apt/lists/*
-
+ENV PIP_DEFAULT_TIMEOUT=1000
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY *.py .

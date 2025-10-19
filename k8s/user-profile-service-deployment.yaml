@@ -23,7 +23,7 @@ spec:
       containers:
         - args:
             - uvicorn
-            - user_profile_service:app
+            - main:app
             - --host
             - 0.0.0.0
             - --port
@@ -33,6 +33,7 @@ spec:
               value: postgres
           image: user-profile-service
           name: user-profile-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8002
               protocol: TCP

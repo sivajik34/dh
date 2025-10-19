@@ -23,6 +23,7 @@ spec:
       containers:
         - image: feedback-service
           name: feedback-service
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8010
               protocol: TCP
