@@ -26,6 +26,7 @@ spec:
               value: redis
           image: gateway
           name: gateway
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
               protocol: TCP

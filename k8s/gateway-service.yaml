@@ -8,9 +8,10 @@ metadata:
     io.kompose.service: gateway
   name: gateway
 spec:
+  type: NodePort               # ✅ Add this line
   ports:
-    - name: "8000"
-      port: 8000
+    - port: 8000
       targetPort: 8000
+      nodePort: 30082          # Optional fixed port
   selector:
     io.kompose.service: gateway
