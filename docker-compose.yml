@@ -49,7 +49,7 @@ services:
       - ./nlu:/app
   
   user-profile-service:
-    build: ./context
+    build: ./user
     ports:
       - "8002:8002"
     command: uvicorn user_profile_service:app --host 0.0.0.0 --port 8002
@@ -60,7 +60,7 @@ services:
       - POSTGRES_HOST=postgres
 
   conversation-service:
-    build: ./context
+    build: ./conversation
     ports:
       - "8003:8003"
     command: uvicorn conversation_service:app --host 0.0.0.0 --port 8003
@@ -79,13 +79,13 @@ services:
       - order-service
   
   order-service:
-    build: ./actions
+    build: ./order
     ports:
       - "8005:8005"
     command: uvicorn order_service:app --host 0.0.0.0 --port 8005  
   
   refund-service:
-    build: ./actions
+    build: ./refund
     ports:
       - "8006:8006"
     command: uvicorn refund_service:app --host 0.0.0.0 --port 8006  

@@ -23,7 +23,7 @@ spec:
       containers:
         - args:
             - uvicorn
-            - conversation_service:app
+            - main:app
             - --host
             - 0.0.0.0
             - --port
