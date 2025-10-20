@@ -3,9 +3,7 @@
 # ============================================================================
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from typing import Dict, Any, List
 import faiss
 import numpy as np
 import httpx
